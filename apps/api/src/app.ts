@@ -94,6 +94,7 @@ export const createApp = () => {
     return context.json({ ...agent, riskScore: riskScores.get(agent.id) ?? 0 });
   });
   app.get("/api/incidents", (context) => context.json(incidents));
+  app.get("/api/audit", (context) => context.json(auditEvents));
   app.post("/api/demo/scenario/safe", async (context) => {
     const response = await app.request("/api/gateway/execute", {
       method: "POST",

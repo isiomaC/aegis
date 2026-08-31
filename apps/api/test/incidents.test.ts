@@ -12,4 +12,15 @@ describe("incidents", () => {
       { agentId: "procurement-agent", severity: "HIGH", status: "OPEN", decision: "DENY" },
     ]);
   });
+
+  it("exposes ledger evidence for an executed action", async () => {
+    const app = createApp();
+    await app.request("/api/demo/scenario/safe", { method: "POST" });
+
+    const response = await app.request("/api/audit");
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject([
+      { agentId: "procurement-agent", action: "create_payment", decision: "ALLOW" },
+    ]);
+  });
 });

@@ -4,17 +4,25 @@ import "./styles.css";
 
 type Agent = { id: string; name: string; owner: string; trustTier: string; status: string; riskScore: number };
 type DecisionResponse = { decision: { outcome: string; riskScore: number; reasons: string[] }; execution: { status: string; paymentId?: string } | null };
+type Incident = { id: string; agentId: string; severity: string; status: string; decision: string; summary: string };
+type AuditCheck = { valid: boolean; eventsChecked: number; headHash: string | null };
 
 const labels: Record<string, string> = { "procurement-agent": "Procurement", "support-agent": "Support", "sre-agent": "SRE", "finance-agent": "Finance" };
 
 function App() {
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [audit, setAudit] = useState<AuditCheck | null>(null);
   const [event, setEvent] = useState("Fleet telemetry idle — ready for a controlled simulation.");
   const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(async () => {
-    const response = await fetch("/api/agents");
-    if (response.ok) setAgents(await response.json() as Agent[]);
+    const [agentsResponse, incidentsResponse, auditResponse] = await Promise.all([
+      fetch("/api/agents"), fetch("/api/incidents"), fetch("/api/audit/verify"),
+    ]);
+    if (agentsResponse.ok) setAgents(await agentsResponse.json() as Agent[]);
+    if (incidentsResponse.ok) setIncidents(await incidentsResponse.json() as Incident[]);
+    if (auditResponse.ok) setAudit(await auditResponse.json() as AuditCheck);
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
@@ -40,6 +48,10 @@ function App() {
       <div className="panel command"><p className="eyebrow">Guided demo</p><h2>Run the security story</h2><p className="muted">Each scenario uses the same gateway, policy engine, protected action simulator, and audit ledger.</p><div className="actions"><button className="allow" onClick={() => void runDemo("/api/demo/scenario/safe", "Known vendor payment")} disabled={busy}>Run safe payment <small>$180</small></button><button className="deny" onClick={() => void runDemo("/api/demo/scenario/overspend", "Overspend attack")} disabled={busy}>Run overspend <small>$40,000</small></button><button className="deny" onClick={() => void runDemo("/api/demo/scenario/compromised-agent", "Prompt-injection attack")} disabled={busy}>Run prompt injection <small>QUARANTINE</small></button></div></div>
     </section>
     <section className="panel timeline"><div className="panelHead"><h2>Gateway decision</h2><span>TRACE</span></div><p>{event}</p></section>
+    <section className="evidence">
+      <div className="panel"><div className="panelHead"><h2>Open incidents</h2><span>{incidents.length} ACTIVE</span></div>{incidents.length === 0 ? <p className="muted evidenceEmpty">No open incidents. Run a blocked scenario to create one.</p> : <div className="incidentList">{incidents.map((incident) => <article className="incident" key={incident.id}><strong>{incident.severity} · {labels[incident.agentId]}</strong><span>{incident.decision}</span><p>{incident.summary}</p></article>)}</div>}</div>
+      <div className="panel"><div className="panelHead"><h2>Audit ledger</h2><span className={audit?.valid ? "ledgerValid" : "blocked"}>{audit?.valid ? "VERIFIED" : "CHECKING"}</span></div><strong className="ledgerCount">{audit?.eventsChecked ?? 0} events</strong><p className="muted">Tamper-evident SHA-256 chain. Head: {audit?.headHash?.slice(0, 16) ?? "—"}</p></div>
+    </section>
   </main>;
 }
 
