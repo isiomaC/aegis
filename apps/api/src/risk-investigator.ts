@@ -11,7 +11,7 @@ export type RiskInvestigationInput = {
 };
 
 const model = new Gemini({
-  model: process.env.AEGIS_GEMINI_MODEL ?? "gemini-2.5-flash",
+  model: process.env.AEGIS_GEMINI_MODEL ?? "gemini-3.5-flash",
   vertexai: process.env.GOOGLE_GENAI_USE_VERTEXAI === "true",
   project: process.env.GOOGLE_CLOUD_PROJECT,
   location: process.env.GOOGLE_CLOUD_LOCATION,

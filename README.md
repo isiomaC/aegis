@@ -23,7 +23,7 @@ than trusting each individual agent implementation.
 - Registers agent identity, ownership, trust tier, capabilities, allowed tools,
   and policy assignments.
 - Evaluates a **deterministic deny-wins policy** before execution.
-- Uses a Gemini risk investigator through Google ADK and Vertex AI as an
+- Uses a Gemini 3.5 Flash risk investigator through Google ADK and Vertex AI as an
   advisory contextual-risk layer.
 - Fails closed if advisory model analysis is unavailable: an otherwise allowed
   action is denied; an existing deterministic denial is preserved.
@@ -103,7 +103,7 @@ because that capability is not present in its manifest.
 - **TypeScript**, Node.js 24, pnpm workspaces, ESM
 - **API:** Hono, Zod
 - **UI:** React, Vite
-- **Agent intelligence:** Google ADK, Gemini on Vertex AI
+- **Agent intelligence:** Google ADK, Gemini 3.5 Flash on Vertex AI
 - **Cloud:** Cloud Run, Firestore, Pub/Sub, Cloud Build, Artifact Registry
 - **Tests:** Vitest
 
@@ -148,8 +148,9 @@ Required cloud configuration:
 
 ```dotenv
 GOOGLE_CLOUD_PROJECT=your-project-id
-GOOGLE_CLOUD_LOCATION=europe-west1
+GOOGLE_CLOUD_LOCATION=global
 GOOGLE_GENAI_USE_VERTEXAI=true
+AEGIS_GEMINI_MODEL=gemini-3.5-flash
 FIRESTORE_DATABASE_ID=aegis-hackathon
 PUBSUB_TOPIC=aegis-security-events
 ```
@@ -201,7 +202,7 @@ the Cloud Run service agent needs `roles/iam.serviceAccountTokenCreator` on it.
 From the repository root:
 
 ```bash
-gcloud run deploy aegis-fleet --source . --region=europe-west1 --allow-unauthenticated --service-account="aegis-fleet-run@YOUR_PROJECT_ID.iam.gserviceaccount.com" --set-env-vars="GOOGLE_CLOUD_PROJECT=YOUR_PROJECT_ID,GOOGLE_CLOUD_LOCATION=europe-west1,GOOGLE_GENAI_USE_VERTEXAI=true,FIRESTORE_DATABASE_ID=aegis-hackathon,PUBSUB_TOPIC=aegis-security-events"
+gcloud run deploy aegis-fleet --source . --region=europe-west1 --allow-unauthenticated --service-account="aegis-fleet-run@YOUR_PROJECT_ID.iam.gserviceaccount.com" --set-env-vars="GOOGLE_CLOUD_PROJECT=YOUR_PROJECT_ID,GOOGLE_CLOUD_LOCATION=global,GOOGLE_GENAI_USE_VERTEXAI=true,AEGIS_GEMINI_MODEL=gemini-3.5-flash,FIRESTORE_DATABASE_ID=aegis-hackathon,PUBSUB_TOPIC=aegis-security-events"
 ```
 
 See the local, ignored `docs/CLOUD_RUN_DEPLOYMENT.md` runbook for the full
