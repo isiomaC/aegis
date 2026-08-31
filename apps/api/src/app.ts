@@ -65,7 +65,14 @@ export const createApp = ({ assessRisk = async () => lowRisk, persistence = memo
       return context.json({ decision, execution: null }, 403);
     }
     let decision = evaluatePolicy(agent, request);
-    const assessment = await assessRisk({ request, recentDenies: 0 });
+    let assessment = lowRisk;
+    try {
+      assessment = await assessRisk({ request, recentDenies: 0 });
+    } catch {
+      decision = decision.outcome === "ALLOW"
+        ? { ...decision, outcome: "DENY", reasons: [...decision.reasons, "Advisory risk assessment unavailable; action denied fail closed"] }
+        : { ...decision, reasons: [...decision.reasons, "Advisory risk assessment unavailable; preserved deterministic policy decision"] };
+    }
     decision = { ...decision, riskScore: assessment.score, reasons: [...decision.reasons, ...assessment.reasons] };
     if (decision.outcome === "ALLOW" && assessment.score >= 85) {
       decision = { ...decision, outcome: "DENY", reasons: [...decision.reasons, "Deterministic critical-risk threshold exceeded"] };

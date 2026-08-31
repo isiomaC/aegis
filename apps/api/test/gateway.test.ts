@@ -40,6 +40,17 @@ describe("POST /api/gateway/execute", () => {
     await expect(verification.json()).resolves.toMatchObject({ valid: true, eventsChecked: 1 });
   });
 
+  it("preserves a deterministic denial when the advisory assessor is unavailable", async () => {
+    const app = createApp({ assessRisk: async () => { throw new Error("Vertex temporarily unavailable"); } });
+    const response = await app.request("/api/gateway/execute", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...safePayment, id: "act-overspend-assessor-failure", arguments: { amount: 40_000, currency: "USD", approvedVendor: false } }),
+    });
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({ decision: { outcome: "DENY" } });
+  });
+
   it("raises an agent's behavioral risk after a denied action", async () => {
     const app = createApp();
     await app.request("/api/gateway/execute", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...safePayment, id: "act-risk-overspend", arguments: { amount: 40_000, currency: "USD", approvedVendor: false } }) });
