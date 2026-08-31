@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { createHash } from "node:crypto";
-import { gatewayActionRequestSchema, type AgentManifest } from "@aegis/contracts";
+import { gatewayActionRequestSchema, type AgentManifest, type RiskAssessment } from "@aegis/contracts";
 import { evaluatePolicy } from "@aegis/policy";
 
 const now = "2026-08-31T00:00:00.000Z";
@@ -27,7 +27,10 @@ const agents: Record<string, AgentManifest> = {
   },
 };
 
-export const createApp = () => {
+type RiskAssessor = (input: { request: Parameters<typeof evaluatePolicy>[1]; recentDenies: number }) => Promise<RiskAssessment>;
+const lowRisk: RiskAssessment = { score: 0, severity: "LOW", reasons: [], indicators: [], recommendedDecision: "ALLOW", confidence: 1 };
+
+export const createApp = ({ assessRisk = async () => lowRisk }: { assessRisk?: RiskAssessor } = {}) => {
   const app = new Hono();
   let fleet = structuredClone(agents);
   const completedActions = new Map<string, unknown>();
@@ -56,6 +59,11 @@ export const createApp = () => {
       return context.json({ decision, execution: null }, 403);
     }
     let decision = evaluatePolicy(agent, request);
+    const assessment = await assessRisk({ request, recentDenies: 0 });
+    decision = { ...decision, riskScore: assessment.score, reasons: [...decision.reasons, ...assessment.reasons] };
+    if (decision.outcome === "ALLOW" && assessment.score >= 85) {
+      decision = { ...decision, outcome: "DENY", reasons: [...decision.reasons, "Deterministic critical-risk threshold exceeded"] };
+    }
     const injectionAttempt = request.context?.externalContent?.toLowerCase().includes("ignore all previous") === true;
     if (injectionAttempt && decision.outcome !== "ALLOW") {
       const riskScore = Math.min(100, (riskScores.get(agent.id) ?? 0) + 50);

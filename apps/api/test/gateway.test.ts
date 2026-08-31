@@ -58,4 +58,11 @@ describe("POST /api/gateway/execute", () => {
     const agent = await app.request("/api/agents/support-agent");
     await expect(agent.json()).resolves.toMatchObject({ status: "QUARANTINED", riskScore: 100 });
   });
+
+  it("blocks an otherwise allowed action when advisory risk crosses the deterministic threshold", async () => {
+    const app = createApp({ assessRisk: async () => ({ score: 92, severity: "CRITICAL", reasons: ["Anomalous behavior"], indicators: ["amount anomaly"], recommendedDecision: "DENY", confidence: 0.95 }) });
+    const response = await app.request("/api/gateway/execute", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...safePayment, id: "act-high-risk" }) });
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({ decision: { outcome: "DENY", riskScore: 92 } });
+  });
 });
