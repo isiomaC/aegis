@@ -1,5 +1,7 @@
 import { Hono } from "hono";
+import { serveStatic } from "@hono/node-server/serve-static";
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
 import { gatewayActionRequestSchema, type AgentManifest, type RiskAssessment } from "@aegis/contracts";
 import { evaluatePolicy } from "@aegis/policy";
 import { memoryPersistence, type Persistence } from "./persistence.js";
@@ -171,5 +173,6 @@ export const createApp = ({ assessRisk = async () => lowRisk, persistence = memo
     });
     return context.json({ valid, eventsChecked: auditEvents.length, headHash: previousHash });
   });
+  if (existsSync("./public")) app.use("/*", serveStatic({ root: "./public" }));
   return app;
 };
