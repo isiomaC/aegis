@@ -12,11 +12,14 @@
   "dependencies": {
     "@aegis/contracts": "workspace:*",
     "@aegis/policy": "workspace:*",
+    "@google/adk": "^2.0.0",
     "@hono/node-server": "^1.19.6",
+    "dotenv": "^17.4.2",
     "hono": "^4.8.5",
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@google/adk-devtools": "^2.0.0",
     "@types/node": "^24.3.0",
     "tsx": "^4.20.3"
   }
