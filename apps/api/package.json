@@ -1,0 +1,23 @@
+{
+  "name": "@aegis/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/server.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aegis/contracts": "workspace:*",
+    "@aegis/policy": "workspace:*",
+    "@hono/node-server": "^1.19.6",
+    "hono": "^4.8.5",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "tsx": "^4.20.3"
+  }
+}

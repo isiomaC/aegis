@@ -1,0 +1,18 @@
+{
+  "name": "aegis-fleet",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@11.9.0",
+  "scripts": {
+    "build": "pnpm --filter @aegis/contracts build && pnpm --filter @aegis/policy build && pnpm --filter @aegis/api build && pnpm --filter @aegis/web build",
+    "dev": "pnpm --parallel --filter @aegis/api --filter @aegis/web dev",
+    "test": "pnpm --filter @aegis/contracts test && pnpm --filter @aegis/policy test && pnpm --filter @aegis/api test",
+    "typecheck": "pnpm --filter @aegis/contracts typecheck && pnpm --filter @aegis/policy typecheck && pnpm --filter @aegis/api typecheck && pnpm --filter @aegis/web typecheck"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
