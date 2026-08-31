@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { createHash } from "node:crypto";
 import { gatewayActionRequestSchema, type AgentManifest, type RiskAssessment } from "@aegis/contracts";
 import { evaluatePolicy } from "@aegis/policy";
+import { memoryPersistence, type Persistence } from "./persistence.js";
 
 const now = "2026-08-31T00:00:00.000Z";
 const agents: Record<string, AgentManifest> = {
@@ -30,7 +31,7 @@ const agents: Record<string, AgentManifest> = {
 type RiskAssessor = (input: { request: Parameters<typeof evaluatePolicy>[1]; recentDenies: number }) => Promise<RiskAssessment>;
 const lowRisk: RiskAssessment = { score: 0, severity: "LOW", reasons: [], indicators: [], recommendedDecision: "ALLOW", confidence: 1 };
 
-export const createApp = ({ assessRisk = async () => lowRisk }: { assessRisk?: RiskAssessor } = {}) => {
+export const createApp = ({ assessRisk = async () => lowRisk, persistence = memoryPersistence }: { assessRisk?: RiskAssessor; persistence?: Persistence } = {}) => {
   const app = new Hono();
   let fleet = structuredClone(agents);
   const completedActions = new Map<string, unknown>();
@@ -41,7 +42,9 @@ export const createApp = ({ assessRisk = async () => lowRisk }: { assessRisk?: R
     const previousHash = auditEvents.at(-1)?.eventHash ?? null;
     const event = { id: `audit-${auditEvents.length + 1}`, agentId, actionId, action, decision, previousHash };
     const eventHash = createHash("sha256").update(`${previousHash ?? ""}${JSON.stringify(event)}`).digest("hex");
-    auditEvents.push({ ...event, eventHash });
+    const auditEvent = { ...event, eventHash };
+    auditEvents.push(auditEvent);
+    return auditEvent;
   };
   app.get("/health", (context) => context.json({ status: "ok", service: "aegis-fleet" }));
   app.get("/api/agents", (context) => context.json(Object.values(fleet).map((agent) => ({ ...agent, riskScore: riskScores.get(agent.id) ?? 0 }))));
@@ -80,8 +83,9 @@ export const createApp = ({ assessRisk = async () => lowRisk }: { assessRisk?: R
       riskScores.set(agent.id, riskScore);
       decision = { ...decision, riskScore };
     }
+    let incident: typeof incidents[number] | undefined;
     if (decision.outcome === "DENY" || decision.outcome === "QUARANTINE") {
-      const incident = {
+      incident = {
         id: `inc-${incidents.length + 1}`,
         agentId: agent.id,
         severity: decision.outcome === "QUARANTINE" ? "CRITICAL" as const : "HIGH" as const,
@@ -96,7 +100,8 @@ export const createApp = ({ assessRisk = async () => lowRisk }: { assessRisk?: R
     const response = decision.outcome === "ALLOW"
       ? { decision, execution: { status: "COMPLETED", paymentId: `pay-${request.id}` } }
       : { decision, execution: null };
-    appendAudit(request.agentId, request.id, request.action, decision.outcome);
+    const auditEvent = appendAudit(request.agentId, request.id, request.action, decision.outcome);
+    await persistence.record({ agent, request, decision, riskScore: riskScores.get(agent.id) ?? decision.riskScore, incident, auditEvent });
     completedActions.set(request.id, response);
     return context.json(response, decision.outcome === "ALLOW" ? 200 : 403);
   });

@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { Gemini, InMemoryRunner, LlmAgent } from "@google/adk";
 import { riskAssessmentSchema, type GatewayActionRequest, type RiskAssessment } from "@aegis/contracts";
 
-config({ path: fileURLToPath(new URL("../../../.env", import.meta.url)) });
+config({ path: fileURLToPath(new URL("../../../.env", import.meta.url)), quiet: true });
 
 export type RiskInvestigationInput = {
   request: GatewayActionRequest;

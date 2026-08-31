@@ -12,6 +12,7 @@
   "dependencies": {
     "@aegis/contracts": "workspace:*",
     "@aegis/policy": "workspace:*",
+    "@google-cloud/firestore": "^9.0.0",
     "@google/adk": "^2.0.0",
     "@hono/node-server": "^1.19.6",
     "dotenv": "^17.4.2",
