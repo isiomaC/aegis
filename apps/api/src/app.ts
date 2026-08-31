@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { gatewayActionRequestSchema, type AgentManifest, type RiskAssessment } from "@aegis/contracts";
 import { evaluatePolicy } from "@aegis/policy";
 import { memoryPersistence, type Persistence } from "./persistence.js";
+import { memoryEventPublisher, type EventPublisher } from "./events.js";
 
 const now = "2026-08-31T00:00:00.000Z";
 const agents: Record<string, AgentManifest> = {
@@ -31,7 +32,7 @@ const agents: Record<string, AgentManifest> = {
 type RiskAssessor = (input: { request: Parameters<typeof evaluatePolicy>[1]; recentDenies: number }) => Promise<RiskAssessment>;
 const lowRisk: RiskAssessment = { score: 0, severity: "LOW", reasons: [], indicators: [], recommendedDecision: "ALLOW", confidence: 1 };
 
-export const createApp = ({ assessRisk = async () => lowRisk, persistence = memoryPersistence }: { assessRisk?: RiskAssessor; persistence?: Persistence } = {}) => {
+export const createApp = ({ assessRisk = async () => lowRisk, persistence = memoryPersistence, eventPublisher = memoryEventPublisher }: { assessRisk?: RiskAssessor; persistence?: Persistence; eventPublisher?: EventPublisher } = {}) => {
   const app = new Hono();
   let fleet = structuredClone(agents);
   const completedActions = new Map<string, unknown>();
@@ -102,6 +103,7 @@ export const createApp = ({ assessRisk = async () => lowRisk, persistence = memo
       : { decision, execution: null };
     const auditEvent = appendAudit(request.agentId, request.id, request.action, decision.outcome);
     await persistence.record({ agent, request, decision, riskScore: riskScores.get(agent.id) ?? decision.riskScore, incident, auditEvent });
+    await eventPublisher.publish({ type: decision.outcome === "QUARANTINE" ? "agent.quarantined" : decision.outcome === "ALLOW" ? "gateway.allowed" : "gateway.denied", timestamp: new Date().toISOString(), agentId: agent.id, actionId: request.id, traceId: request.context?.correlationId ?? request.id, payload: { decision, incidentId: incident?.id } });
     completedActions.set(request.id, response);
     return context.json(response, decision.outcome === "ALLOW" ? 200 : 403);
   });
