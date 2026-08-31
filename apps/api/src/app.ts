@@ -32,6 +32,7 @@ export const createApp = () => {
   let fleet = structuredClone(agents);
   const completedActions = new Map<string, unknown>();
   const riskScores = new Map<string, number>();
+  const incidents: Array<{ id: string; agentId: string; severity: "HIGH" | "CRITICAL"; status: "OPEN"; decision: "DENY" | "QUARANTINE"; summary: string; createdAt: string }> = [];
   const auditEvents: Array<{ id: string; agentId: string; actionId: string; action: string; decision: string; previousHash: string | null; eventHash: string }> = [];
   const appendAudit = (agentId: string, actionId: string, action: string, decision: string) => {
     const previousHash = auditEvents.at(-1)?.eventHash ?? null;
@@ -67,6 +68,19 @@ export const createApp = () => {
       };
       if (decision.outcome === "QUARANTINE") agent.status = "QUARANTINED";
     }
+    if (decision.outcome === "DENY" || decision.outcome === "QUARANTINE") {
+      const incident = {
+        id: `inc-${incidents.length + 1}`,
+        agentId: agent.id,
+        severity: decision.outcome === "QUARANTINE" ? "CRITICAL" as const : "HIGH" as const,
+        status: "OPEN" as const,
+        decision: decision.outcome,
+        summary: decision.reasons.join("; "),
+        createdAt: new Date().toISOString(),
+      };
+      incidents.push(incident);
+      decision = { ...decision, incidentId: incident.id };
+    }
     const response = decision.outcome === "ALLOW"
       ? { decision, execution: { status: "COMPLETED", paymentId: `pay-${request.id}` } }
       : { decision, execution: null };
@@ -79,6 +93,7 @@ export const createApp = () => {
     if (!agent) return context.json({ error: "Agent not found" }, 404);
     return context.json({ ...agent, riskScore: riskScores.get(agent.id) ?? 0 });
   });
+  app.get("/api/incidents", (context) => context.json(incidents));
   app.post("/api/demo/scenario/safe", async (context) => {
     const response = await app.request("/api/gateway/execute", {
       method: "POST",
@@ -122,6 +137,7 @@ export const createApp = () => {
     completedActions.clear();
     riskScores.clear();
     auditEvents.length = 0;
+    incidents.length = 0;
     return context.json({ status: "reset" });
   });
   app.get("/api/audit/verify", (context) => {
