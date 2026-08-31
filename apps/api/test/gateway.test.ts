@@ -40,6 +40,13 @@ describe("POST /api/gateway/execute", () => {
     await expect(verification.json()).resolves.toMatchObject({ valid: true, eventsChecked: 1 });
   });
 
+  it("raises an agent's behavioral risk after a denied action", async () => {
+    const app = createApp();
+    await app.request("/api/gateway/execute", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...safePayment, id: "act-risk-overspend", arguments: { amount: 40_000, currency: "USD", approvedVendor: false } }) });
+    const agent = await app.request("/api/agents/procurement-agent");
+    await expect(agent.json()).resolves.toMatchObject({ riskScore: 15 });
+  });
+
   it("quarantines a support agent after repeated prompt-injection attempts", async () => {
     const app = createApp();
     const attack = (id: string) => app.request("/api/gateway/execute", {

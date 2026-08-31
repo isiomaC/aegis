@@ -75,6 +75,10 @@ export const createApp = ({ assessRisk = async () => lowRisk }: { assessRisk?: R
         outcome: riskScore >= 90 ? "QUARANTINE" : decision.outcome,
       };
       if (decision.outcome === "QUARANTINE") agent.status = "QUARANTINED";
+    } else if (decision.outcome === "DENY") {
+      const riskScore = Math.max(decision.riskScore, Math.min(100, (riskScores.get(agent.id) ?? 0) + 15));
+      riskScores.set(agent.id, riskScore);
+      decision = { ...decision, riskScore };
     }
     if (decision.outcome === "DENY" || decision.outcome === "QUARANTINE") {
       const incident = {
