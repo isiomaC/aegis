@@ -51,6 +51,22 @@ describe("POST /api/gateway/execute", () => {
     await expect(response.json()).resolves.toMatchObject({ decision: { outcome: "DENY" } });
   });
 
+  it("retries a transient advisory assessment failure before denying a safe action", async () => {
+    let attempts = 0;
+    const app = createApp({ assessRisk: async () => {
+      attempts += 1;
+      if (attempts === 1) throw new Error("Vertex transient failure");
+      return { score: 5, severity: "LOW", reasons: ["Retry succeeded"], indicators: [], recommendedDecision: "ALLOW", confidence: 0.9 };
+    } });
+    const response = await app.request("/api/gateway/execute", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...safePayment, id: "act-safe-assessor-retry" }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(attempts).toBe(2);
+    await expect(response.json()).resolves.toMatchObject({ decision: { outcome: "ALLOW", riskScore: 5 } });
+  });
+
   it("raises an agent's behavioral risk after a denied action", async () => {
     const app = createApp();
     await app.request("/api/gateway/execute", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...safePayment, id: "act-risk-overspend", arguments: { amount: 40_000, currency: "USD", approvedVendor: false } }) });

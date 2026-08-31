@@ -66,9 +66,17 @@ export const createApp = ({ assessRisk = async () => lowRisk, persistence = memo
     }
     let decision = evaluatePolicy(agent, request);
     let assessment = lowRisk;
-    try {
-      assessment = await assessRisk({ request, recentDenies: 0 });
-    } catch {
+    let assessmentFailed = true;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        assessment = await assessRisk({ request, recentDenies: 0 });
+        assessmentFailed = false;
+        break;
+      } catch {
+        // A single transient Vertex response failure should not interrupt a safe action.
+      }
+    }
+    if (assessmentFailed) {
       decision = decision.outcome === "ALLOW"
         ? { ...decision, outcome: "DENY", reasons: [...decision.reasons, "Advisory risk assessment unavailable; action denied fail closed"] }
         : { ...decision, reasons: [...decision.reasons, "Advisory risk assessment unavailable; preserved deterministic policy decision"] };
