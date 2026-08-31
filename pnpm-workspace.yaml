@@ -1,3 +1,12 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# pnpm 11 blocks dependency lifecycle scripts until they are explicitly reviewed.
+# esbuild is required for the Vite production bundle; the Google SDK's prepare
+# script is required by the ADK dependency. Keep unrelated native builds off.
+allowBuilds:
+  "@google/genai": true
+  esbuild: true
+  protobufjs: false
+  sqlite3: false
